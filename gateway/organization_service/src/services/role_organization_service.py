@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from src.models.RoleOrganization import RoleOrganization
+from shared.models.RoleOrganization import RoleOrganization
 from src.schemas.RoleOrganization import RoleOrganizationCreate
 
 async def create_role(db: AsyncSession, role_data: RoleOrganizationCreate):

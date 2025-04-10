@@ -1,9 +1,47 @@
 version: "3.9"
 
 services:
+  db:
+    image: postgres:14
+    container_name: teamflow_postgres
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: teamflow
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   auth_service:
     build:
-      context: . # 👈 корень TeamFlow_Back
+      context: .
       dockerfile: gateway/auth_service/Dockerfile
     ports:
       - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://user:password@db:5432/teamflow
+    depends_on:
+      - db
+    command: >
+      sh -c "sleep 5 &&
+             alembic upgrade head &&
+             uvicorn main:app --host 0.0.0.0 --port 8000"
+
+  organization_service:
+    build:
+      context: .
+      dockerfile: gateway/organization_service/Dockerfile
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://user:password@db:5432/teamflow
+    depends_on:
+      - db
+    command: >
+      sh -c "sleep 5 &&
+             alembic upgrade head &&
+             uvicorn main:app --host 0.0.0.0 --port 8000"
+
+volumes:
+  postgres_data:

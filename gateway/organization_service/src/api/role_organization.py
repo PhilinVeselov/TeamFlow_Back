@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from src.db.session import get_db
+from shared.db.session import get_db
 from src.schemas.RoleOrganization import RoleOrganizationCreate, RoleOrganizationRead
 from src.services.role_organization_service import create_role, get_all_roles
 

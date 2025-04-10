@@ -1,7 +1,13 @@
+import sys
 import os
+
+# Добавляем пути до shared и src до любых импортов из них
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'shared'))
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
+
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
-from sqlalchemy import create_engine
+from sqlalchemy import engine_from_config, pool, create_engine
 from alembic import context
 from dotenv import load_dotenv
 
@@ -9,20 +15,22 @@ from dotenv import load_dotenv
 load_dotenv()
 DATABASE_URL = os.getenv("SYNC_DATABASE_URL")
 
-# Этот объект конфигурации нужен для Alembic
+# Alembic config
 config = context.config
 
-# Включаем логирование из .ini (если есть)
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Импорт моделей (после настройки путей, если надо)
-from src.db.base import Base
-from src.models import user, organization, project, vacancy  # подтяни всё нужное
+# Импорт моделей
+from shared.db.base import Base
+from shared.models import (
+    User, Organization, Project, Vacancy, TechnologyStack,
+    RoleProject, RoleOrganization, UserOrganization,
+    UserProject, UserProjectHistory, VacancyResponse
+)
 
-# Для автогенерации миграций
+# Для автогенерации
 target_metadata = Base.metadata
-
 
 def run_migrations_offline() -> None:
     context.configure(
@@ -35,7 +43,6 @@ def run_migrations_offline() -> None:
     with context.begin_transaction():
         context.run_migrations()
 
-
 def run_migrations_online() -> None:
     connectable = create_engine(DATABASE_URL, poolclass=pool.NullPool)
 
@@ -47,7 +54,6 @@ def run_migrations_online() -> None:
 
         with context.begin_transaction():
             context.run_migrations()
-
 
 if context.is_offline_mode():
     run_migrations_offline()

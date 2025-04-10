@@ -8,3 +8,6 @@ pydantic[email]
 pydantic-settings
 python-multipart
 httpx
+alembic
+python-dotenv
+psycopg2-binary
