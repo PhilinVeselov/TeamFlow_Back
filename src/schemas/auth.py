@@ -7,6 +7,9 @@ class TokenData(BaseModel):
     refresh_token: str  
     token_type: str
 
+class LoginSchema(BaseModel):
+    username: str
+    password: str
 
 class RegisterParticipant(BaseModel):
     name: str
@@ -14,7 +17,7 @@ class RegisterParticipant(BaseModel):
     password: str
     description: Optional[str] = None
     img: Optional[str] = None
-    technology_stack_ids: List[int]  # вот тут список ID стеков
+    technology_stack_ids: List[int] 
 
 
 class RegisterOrganization(BaseModel):
@@ -22,5 +25,5 @@ class RegisterOrganization(BaseModel):
     email: EmailStr
     password: str
     organization_name: str
-    organization_domain: Optional[str] = None
-    organization_email: Optional[str] = None
+    organization_domain: str  # ← теперь обязательное поле
+    organization_email: EmailStr

@@ -14,3 +14,4 @@ class TechnologyStack(Base):
          secondary=UserTechnologyStack.__table__,
         back_populates="technology_stacks"
     )
+    

@@ -8,6 +8,10 @@ from src.models.user import User
 from src.models.organization import Organization
 from src.models.UserOrganization import UserOrganization
 from src.models.user_technology_stack import UserTechnologyStack
+from sqlalchemy import select
+from src.models.RoleOrganization import RoleOrganization
+from jose import jwt, JWTError
+from sqlalchemy.orm import joinedload
 
 from src.core.config import settings
 from src.core.security import (
@@ -17,6 +21,38 @@ from src.core.security import (
     get_password_hash
 )
 
+
+async def get_current_user_from_token(db: AsyncSession, token: str) -> User | None:
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = int(payload.get("sub"))
+    except (JWTError, TypeError, ValueError):
+        return None
+
+    result = await db.execute(
+        select(User)
+        .options(
+            joinedload(User.user_organizations).joinedload(UserOrganization.organization),
+            joinedload(User.user_organizations).joinedload(UserOrganization.role_organization)
+        )
+        .where(User.id_user == user_id)
+    )
+    user = result.unique().scalar_one_or_none()
+
+    if not user:
+        return None
+
+    if user.user_organizations:
+        first_org_link = user.user_organizations[0]
+        user.organization = first_org_link.organization
+        user.role_organization = first_org_link.role_organization
+        user.organization_id = first_org_link.id_organizations
+    else:
+        user.organization = None
+        user.role_organization = None
+        user.organization_id = None
+
+    return user
 
 async def authenticate_user(db: AsyncSession, email: str, password: str) -> User:
     user = await get_user_by_email(db, email)
@@ -43,7 +79,13 @@ async def login_for_access_token(db: AsyncSession, email: str, password: str):
         "token_type": "bearer",
     }
 
-
+async def get_admin_role_id(db):
+    query = select(RoleOrganization).where(RoleOrganization.name == "Admin")
+    result = await db.execute(query)
+    role = result.scalar_one_or_none()
+    if not role:
+        raise Exception("Роль Admin не найдена")
+    return role.id_role_organization
 
 async def register_participant_user(db: AsyncSession, user_in: RegisterParticipant) -> User:
     existing_user = await get_user_by_email(db, user_in.email)
@@ -70,35 +112,46 @@ async def register_participant_user(db: AsyncSession, user_in: RegisterParticipa
     await db.refresh(new_user)
     return new_user
 
-
-async def register_organization_user(db: AsyncSession, data: RegisterOrganization) -> User:
+async def register_organization_user(db: AsyncSession, data: RegisterOrganization):
+    # Проверка: существует ли уже пользователь с таким email
     existing_user = await get_user_by_email(db, data.email)
     if existing_user:
-        raise HTTPException(status_code=400, detail="User with this email already exists")
+        raise HTTPException(status_code=400, detail="Пользователь с таким email уже существует")
 
-    org = Organization(
+    # 1. Создаём организацию
+    organization = Organization(
         name=data.organization_name,
         domein=data.organization_domain,
         email=data.organization_email
     )
-    db.add(org)
-    await db.flush()  # получить id_organizations
+    db.add(organization)
+    await db.flush()  # чтобы получить ID организации
 
-    hashed_password = get_password_hash(data.password)
+    # 2. Создаём пользователя, указывая organization_id
     user = User(
         name=data.name,
         email=data.email,
-        password=hashed_password
+        password=get_password_hash(data.password)
     )
     db.add(user)
-    await db.flush()  # получить id_user
+    await db.flush()
 
-    link = UserOrganization(
-        id_user=user.id_user,
-        id_organizations=org.id_organizations,
-        id_role_organization=1  # по умолчанию admin
+    # 3. Получаем ID роли Admin
+    admin_role = await db.execute(
+        select(RoleOrganization).where(RoleOrganization.name == "Admin")
     )
-    db.add(link)
+    admin_role_id = admin_role.scalar_one().id_role_organization
+
+    # 4. Связываем пользователя с организацией через UserOrganization
+    user_org = UserOrganization(
+        id_user=user.id_user,
+        id_organizations=organization.id_organizations,
+        id_role_organization=admin_role_id
+    )
+    db.add(user_org)
+
+    # 5. Финализируем
     await db.commit()
     await db.refresh(user)
+
     return user

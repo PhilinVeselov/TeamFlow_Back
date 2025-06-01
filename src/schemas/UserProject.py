@@ -1,13 +1,10 @@
 from pydantic import BaseModel
-from typing import Optional
+from uuid import UUID
 
-class UserProjectBase(BaseModel):
-    id_project: int
+class UserProjectCreate(BaseModel):
+    id_user: UUID
+    id_project: UUID
     id_role_project: int
-    id_user: int
 
-class UserProjectRead(UserProjectBase):
+class UserProjectRead(UserProjectCreate):
     id_user_project: int
-
-    class Config:
-        orm_mode = True

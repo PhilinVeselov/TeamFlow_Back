@@ -8,9 +8,11 @@ from src.models.TechnologyStack import TechnologyStack
 from src.models.RoleProject import RoleProject
 from src.models.RoleOrganization import RoleOrganization
 from src.models.UserOrganization import UserOrganization
-from src.models.UserProject import UserProject
+from src.models.user_project import UserProject
 from src.models.UserProjectHistory import UserProjectHistory
 from src.models.VacancyResponse import VacancyResponse
+from src.models.invite_organization import InviteOrganization
+
 
 __all__ = [
     "Base",
@@ -24,7 +26,8 @@ __all__ = [
     "UserOrganization",
     "UserProject",
     "UserProjectHistory",
-    "VacancyResponse"
+    "VacancyResponse",
+    "InviteOrganization"
 ]
 
 target_metadata = Base.metadata

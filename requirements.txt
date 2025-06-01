@@ -7,3 +7,8 @@ pydantic
 python-jose
 passlib[bcrypt]
 python-dotenv
+pydantic[email]
+pydantic-settings
+python-multipart
+psycopg2-binary
+aiosmtplib>=2.0.0

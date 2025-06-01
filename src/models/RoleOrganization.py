@@ -7,3 +7,4 @@ class RoleOrganization(Base):
 
     id_role_organization = Column(Integer, primary_key=True, index=True)
     name = Column(String(50))
+

@@ -6,6 +6,10 @@ class OrganizationBase(BaseModel):
     domein: Optional[str]
     email: Optional[str]
 
+class OrganizationUp(BaseModel):
+    name: str
+    email: Optional[str]
+
 class OrganizationRead(OrganizationBase):
     id_organizations: int
 
