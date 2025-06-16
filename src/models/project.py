@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy import Column, Integer, String, ForeignKey, Boolean
 from sqlalchemy.orm import relationship
 from src.db.base import Base
 
@@ -12,6 +12,7 @@ class Project(Base):
 
     id_organizations = Column(Integer, ForeignKey("organization.id_organizations"))
     id_technology_stack = Column(Integer, ForeignKey("technology_stack.id_technology_stack"))
-
+    is_paid = Column(Boolean, default=False)        
+    is_remote = Column(Boolean, default=True)  
     organization = relationship("Organization", back_populates="projects")
     technology_stack = relationship("TechnologyStack")

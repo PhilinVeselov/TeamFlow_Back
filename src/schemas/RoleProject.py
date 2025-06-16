@@ -6,8 +6,9 @@ class RoleProjectBase(BaseModel):
 class RoleProjectCreate(RoleProjectBase):
     pass
 
-class RoleProjectRead(RoleProjectBase):
+class RoleProjectRead(BaseModel):
     id_role_project: int
+    name: str
 
     class Config:
         from_attributes = True
