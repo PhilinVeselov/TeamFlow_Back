@@ -4,7 +4,14 @@ from src.core.config import settings
 from contextlib import asynccontextmanager
 
 engine = create_async_engine(settings.DATABASE_URL, echo=True)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
+
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,  # ✅ фикс для MissingGreenlet
+    bind=engine,
+    class_=AsyncSession,
+)
 
 @asynccontextmanager
 async def get_async_session():
