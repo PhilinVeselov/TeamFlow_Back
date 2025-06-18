@@ -12,6 +12,7 @@ from src.models.user_project import UserProject
 from src.models.UserProjectHistory import UserProjectHistory
 from src.models.VacancyResponse import VacancyResponse
 from src.models.invite_organization import InviteOrganization
+from src.models.project_technology_stack import ProjectTechnologyStack
 
 
 __all__ = [
@@ -27,7 +28,8 @@ __all__ = [
     "UserProject",
     "UserProjectHistory",
     "VacancyResponse",
-    "InviteOrganization"
+    "InviteOrganization",
+    "ProjectTechnologyStack"
 ]
 
 target_metadata = Base.metadata

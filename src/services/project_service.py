@@ -8,20 +8,32 @@ from src.models.RoleProject import RoleProject
 from sqlalchemy.orm import selectinload
 from src.schemas.project import ProjectRead
 from src.models import UserOrganization, RoleOrganization
+from src.models.TechnologyStack import TechnologyStack
 
-async def create_project(db: AsyncSession, data: ProjectCreate, id_user: int) -> Project:
-    project = Project(**data.dict())
+async def create_project(db: AsyncSession, data: ProjectCreate, id_user: int) -> ProjectRead:
+    # Убираем лишнее поле (оно есть только в pydantic-схеме)
+    project_data = data.dict(exclude={"technology_stack_ids"})
+
+    project = Project(**project_data)
     db.add(project)
     await db.commit()
     await db.refresh(project)
 
-    # Получаем роль "Admin"
+    # Привязка технологий к проекту
+    if data.technology_stack_ids:
+        result = await db.execute(
+            select(TechnologyStack).where(TechnologyStack.id_technology_stack.in_(data.technology_stack_ids))
+        )
+        technologies = result.scalars().all()
+        project.technology_stacks.extend(technologies)
+        await db.commit()
+
+    # Назначение роли
     result = await db.execute(select(RoleProject).where(RoleProject.name == "Admin"))
     admin_role = result.scalar_one_or_none()
     if not admin_role:
         raise ValueError("Role 'Admin' not found")
 
-    # Привязка пользователя к проекту
     user_project = UserProject(
         id_user=id_user,
         id_project=project.id_project,
@@ -30,14 +42,13 @@ async def create_project(db: AsyncSession, data: ProjectCreate, id_user: int) ->
     db.add(user_project)
     await db.commit()
 
-    # 🔥 ВАЖНО: подгружаем организацию
+    # Возврат с подгрузкой
     result = await db.execute(
         select(Project)
-        .options(selectinload(Project.organization))  # <---
+        .options(selectinload(Project.organization), selectinload(Project.technology_stacks))
         .where(Project.id_project == project.id_project)
     )
-    project_with_organization = result.scalar_one()
-    return ProjectRead.model_validate(project_with_organization)
+    return ProjectRead.model_validate(result.scalar_one())
 
 async def get_user_projects(db: AsyncSession, id_user: int) -> list[ProjectRead]:
     # 1. Получаем список ID организаций, где пользователь — админ
@@ -56,7 +67,7 @@ async def get_user_projects(db: AsyncSession, id_user: int) -> list[ProjectRead]
         # 2. Если пользователь админ хотя бы в одной организации — получаем все проекты из этих организаций
         result = await db.execute(
             select(Project)
-            .options(selectinload(Project.organization))
+            .options(selectinload(Project.organization),  selectinload(Project.technology_stacks))
             .where(Project.id_organizations.in_(admin_org_ids))
         )
     else:
@@ -64,7 +75,7 @@ async def get_user_projects(db: AsyncSession, id_user: int) -> list[ProjectRead]
         result = await db.execute(
             select(Project)
             .join(UserProject)
-            .options(selectinload(Project.organization))
+            .options(selectinload(Project.organization),  selectinload(Project.technology_stacks))
             .where(UserProject.id_user == id_user)
         )
 
@@ -74,25 +85,33 @@ async def get_user_projects(db: AsyncSession, id_user: int) -> list[ProjectRead]
 async def get_project_by_id(db: AsyncSession, id_project: int):
     result = await db.execute(
         select(Project)
-        .options(selectinload(Project.organization))  # 🔥 Важно!
+        .options(selectinload(Project.organization),  selectinload(Project.technology_stacks))
         .where(Project.id_project == id_project)
     )
     return result.scalar_one_or_none()
-async def update_project(db: AsyncSession, id_project: int, data: ProjectUpdate) -> Project:
+
+async def update_project(db: AsyncSession, id_project: int, data: ProjectUpdate) -> ProjectRead:
     result = await db.execute(select(Project).where(Project.id_project == id_project))
     project = result.scalar_one_or_none()
     if not project:
         raise ValueError("Project not found")
 
-    for key, value in data.dict(exclude_unset=True).items():
+    update_data = data.dict(exclude_unset=True, exclude={"technology_stack_ids"})
+    for key, value in update_data.items():
         setattr(project, key, value)
 
+    # Обновляем стеки технологий, если переданы
+    if "technology_stack_ids" in data.model_fields_set:
+        result = await db.execute(
+            select(TechnologyStack).where(TechnologyStack.id_technology_stack.in_(data.technology_stack_ids))
+        )
+        technologies = result.scalars().all()
+        project.technology_stacks = technologies  # полная замена
     await db.commit()
 
-    # 🔥 Подгружаем организацию перед возвратом
     result = await db.execute(
         select(Project)
-        .options(selectinload(Project.organization))
+        .options(selectinload(Project.organization), selectinload(Project.technology_stacks))
         .where(Project.id_project == id_project)
     )
-    return result.scalar_one()
+    return ProjectRead.model_validate(result.scalar_one())

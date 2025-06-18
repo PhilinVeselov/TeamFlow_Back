@@ -1,31 +1,32 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from fastapi import HTTPException
 from src.models.vacancy import Vacancy
-from src.models.VacancyResponse import VacancyResponse
-from src.schemas.vacancy import VacancyBase
+from src.schemas.vacancy import VacancyCreate
 
-
-async def create_vacancy(db: AsyncSession, vacancy_in: VacancyBase) -> Vacancy:
-    vacancy = Vacancy(**vacancy_in.dict())
+async def create_vacancy(db: AsyncSession, data: VacancyCreate):
+    vacancy = Vacancy(**data.dict())
     db.add(vacancy)
     await db.commit()
     await db.refresh(vacancy)
     return vacancy
 
+async def deactivate_vacancy(db: AsyncSession, id_vacancy: int):
+    result = await db.execute(select(Vacancy).where(Vacancy.id_vacancy == id_vacancy))
+    vacancy = result.scalar_one_or_none()
+    if vacancy:
+        vacancy.is_active = False
+        await db.commit()
+        await db.refresh(vacancy)
+    return vacancy
 
-async def respond_to_vacancy(db: AsyncSession, id_vacancy: int, id_user: int, status: str = "pending") -> VacancyResponse:
-    # Проверить, что вакансия существует
-    vacancy = await db.get(Vacancy, id_vacancy)
-    if not vacancy:
-        raise HTTPException(status_code=404, detail="Vacancy not found")
-
-    response = VacancyResponse(
-        id_vacancy=id_vacancy,
-        id_user=id_user,
-        status=status
+async def get_active_vacancy_projects(db: AsyncSession):
+    from src.models.project import Project
+    from sqlalchemy.orm import selectinload
+    result = await db.execute(
+        select(Project)
+        .join(Project.vacancies)
+        .filter(Vacancy.is_active == True)
+        .options(selectinload(Project.organization), selectinload(Project.technology_stacks))
+        .distinct()
     )
-    db.add(response)
-    await db.commit()
-    await db.refresh(response)
-    return response
+    return result.scalars().all()

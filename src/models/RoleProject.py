@@ -7,3 +7,4 @@ class RoleProject(Base):
 
     id_role_project = Column(Integer, primary_key=True, index=True)
     name = Column(String(50))
+    vacancies = relationship("Vacancy", back_populates="role")

@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, File, Form, UploadFile
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select  # ✅
 from sqlalchemy.exc import IntegrityError  # ✅
 from jose import JWTError, jwt
+from uuid import uuid4
 
 from src.schemas.auth import RegisterParticipant, RegisterOrganization, TokenData, LoginSchema
 from src.db.session import get_db
@@ -22,12 +23,38 @@ router = APIRouter()
 
 @router.post("/register/participant", response_model=TokenData)
 async def register_participant(
-    user_in: RegisterParticipant, db: AsyncSession = Depends(get_db)
+    name: str = Form(...),
+    email: str = Form(...),
+    password: str = Form(...),
+    description: str = Form(None),
+    is_looking_for_project: bool = Form(False),
+    technology_stack_ids: list[int] = Form(...),
+    img: UploadFile = File(None),
+    db: AsyncSession = Depends(get_db)
 ):
+    # Сохраняем файл
+    img_path = None
+    if img:
+        ext = img.filename.split('.')[-1]
+        file_name = f"{uuid4()}.{ext}"
+        file_path = f"src/static/profile_images/{file_name}"
+        with open(file_path, "wb") as f:
+            f.write(await img.read())
+        img_path = f"/static/profile_images/{file_name}"
+
+    # Собираем схему вручную
+    user_in = RegisterParticipant(
+        name=name,
+        email=email,
+        password=password,
+        description=description,
+        img=img_path,
+        is_looking_for_project=is_looking_for_project,
+        technology_stack_ids=technology_stack_ids
+    )
+
     user = await register_participant_user(db, user_in)
-    return await login_for_access_token(db, user.email, user_in.password)
-
-
+    return await login_for_access_token(db, user.email, password)
 @router.post("/register/organization", response_model=TokenData)
 async def register_organization(
     data: RegisterOrganization, db: AsyncSession = Depends(get_db)

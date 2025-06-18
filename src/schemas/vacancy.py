@@ -1,13 +1,12 @@
 from pydantic import BaseModel
-from typing import Optional
+from src.schemas.RoleProject import RoleProjectRead
 
-class VacancyBase(BaseModel):
-    is_active: bool
-    id_role_project: int
+class VacancyCreate(BaseModel):
     id_project: int
+    id_role_project: int
 
-class VacancyRead(VacancyBase):
-    id_vacancy: int
+class VacancyOut(BaseModel):
+    role: RoleProjectRead  # будет доступно как vacancy.role.name
 
     class Config:
-        orm_mode = True
+        from_attributes = True

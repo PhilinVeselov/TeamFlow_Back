@@ -14,4 +14,11 @@ class TechnologyStack(Base):
          secondary=UserTechnologyStack.__table__,
         back_populates="technology_stacks"
     )
+    # models/technology_stack.py
+    projects = relationship(
+        "Project",
+        secondary="project_technology_stack",
+        back_populates="technology_stacks"
+    )
+
     
